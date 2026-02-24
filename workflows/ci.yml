@@ -1,1 +1,52 @@
+name: CI
 
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+
+      - name: 📦 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # If a workspace doesn't have a script yet, --if-present prevents CI from failing
+      - name: 🔍 Lint
+        run: pnpm -r --if-present lint
+
+      - name: 🧪 Typecheck
+        run: pnpm -r --if-present typecheck
+
+      - name: ✅ Unit tests
+        run: pnpm -r --if-present test
+
+      # Expo sanity checks (optional but recommended for mobile repos)
+      - name: 🩺 Expo Doctor (buyer)
+        run: cd apps/buyer && npx expo-doctor
+      - name: 🩺 Expo Doctor (agent)
+        run: cd apps/agent && npx expo-doctor
